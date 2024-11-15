@@ -9,15 +9,13 @@
         <!-- Sidebar Navigation -->
         <div class="sidebar" :class="{ active: sidebarActive }">
             <div class="profile-logo" @click="setView('Profile')">
-                <img src="./assets/profile1.jpeg" alt="Profile Logo" />
+                <img src="./assets/cinemania_logo.png" alt="Profile Logo" />
             </div>
-            <p>Jose Marie Chan</p>
-            <h2>CINEMANIA</h2>
             <ul>
-                <li><a href="#Profile" @click="setView('Profile')">Profile</a></li>
+                <li><a href="#" @click="setView('Profile')">Profile</a></li>
+				<li><a href="#Home" @click="setView('Home')">Home</a></li>
                 <li><a href="#" @click="setView('Shows')">Now Showing</a></li>
-                <li><a href="#Home" @click="setView('Home')">Home</a></li>
-                <li><a href="#" @click="setView('Reciept')">Reciept</a></li>
+                <li><a href="#" @click="setView('Ticket')">Ticket</a></li>
                 <li><a href="#" @click="setView('Feedback')">Feedback</a></li>
             </ul>
         </div>
@@ -34,21 +32,64 @@
             </div>
 			
             <!-- PROFILE -->
-            <div v-if="view === 'Profile'" class="profile-content" id="Profile">
-                <div class="profile-top">
-                    <h2>Welcome, User!</h2>
-                    <div class="points-meter">
-                        <div class="meter">
-                            <div class="meter-fill" :style="{ width: pointsPercentage + '%' }"></div>
-                            <img :src="iconPath" class="points-icon" :class="{ glow: points >= 100 }" />
-                        </div>
-                        <p>{{ points }} / {{ maxPoints }} points</p>
-                        <p v-if="points >= maxPoints">🎉 CLICK THE TICKET TO CLAIM THE REWARD! 🎉</p>
-                    </div>
-                </div>
-                <h1>User Profile</h1>
-                <p>This section can include user information, settings, etc.</p>
+<div v-if="view === 'Profile'" class="profile-content" id="Profile">
+    <div class="profile-top">
+        <h2>Welcome, {{ firstName }}!</h2>
+        <div class="points-meter">
+            <div class="meter">
+                <div class="meter-fill" :style="{ width: pointsPercentage + '%' }"></div>
+                <img
+                    :src="iconPath"
+                    class="points-icon"
+                    :class="{ glow: points >= maxPoints }"
+                />
             </div>
+            <p>{{ points }} / {{ maxPoints }} points</p>
+            <p v-if="points >= maxPoints">🎉 CLICK THE TICKET TO CLAIM THE REWARD! 🎉</p>
+        </div>
+    </div>
+
+    <h1>User Profile</h1>
+
+<!-- Combined Profile Details Container -->
+<div class="profile-container">
+    <p><strong>First Name:</strong> {{ firstName }}</p>
+    <p><strong>Last Name:</strong> {{ lastName }}</p>
+    <p><strong>Email Address:</strong> {{ email }}</p>
+    
+    <form @submit.prevent="saveProfile" class="user-profile-form">
+        <div class="form-group">
+            <label for="birthdate">Birthdate:</label>
+            <input
+                type="date"
+                id="birthdate"
+                v-model="birthdate"  
+                placeholder="Enter your birthdate"
+            />
+        </div>
+
+        <div class="form-group">
+            <label for="contactNo">Contact No.:</label>
+            <input
+                type="tel"
+                id="contactNo"
+                v-model="contactNo"
+                placeholder="Enter your contact number"
+            />
+        </div>
+
+        <button type="submit" id="save-button">Save Profile</button>
+    </form>
+</div>
+</div>
+
+
+
+	
+
+
+
+
 
             <!-- NOW SHOWING -->
             <div v-if="view === 'Shows'" class="shows-content">
@@ -117,6 +158,19 @@
                 </div>
                 <p>Selected Seats: {{ selectedSeats.join(', ') || 'None' }}</p>
             </div>
+	<div v-if="showPopup" class="popup-overlay">
+    <div class="popup-box">
+        <h2>Thank You!</h2>
+        <p>Purchased successfully.</p>
+        <p><strong>Movie:</strong> {{ selectedMovie.title }}</p>
+        <p><strong>Seats:</strong></p>
+        <ul class="seat-list">
+            <li v-for="seat in purchasedSeats" :key="seat.label">{{ seat.label }}</li>
+        </ul>
+        <p><strong>Ticket Numbers:</strong> {{ ticketNumbers.join(', ') }}</p>
+        <button @click="closePopup">Close</button>
+    </div>
+</div>
 
             <!-- FEEDBACK -->
             <div v-if="view === 'Feedback'" class="feedback-content">
@@ -140,14 +194,20 @@ export default {
             searchQuery: '',
             isSearching: false,
             currentTime: '',
+			firstName: 'John', // Sample data
+            lastName: 'Doe', // Sample data
+            email: 'johndoe@example.com', // Sample data
+            birthdate: '', // Inputable
+            contactNo: '', // Inputable
             selectedMovie: null,
-            selectedSeats: [],
             seats: [],
+			showPopup: false,
+			ticketNumbers: [], // To store generated ticket numbers
+			selectedSeats: [],
             filteredMoviesList: [],
             feedback: '',
             points: 100,
             maxPoints: 100,
-            iconPath: require('@/assets/ticket.png'),
             movies: {
                 Action: [
                     { id: 1, title: 'Avengers: Endgame', genre: 'Action', date: 'December 13', time: '3:00 PM', image:  require('@/assets/venom.jpg'), description: 'A thrilling tale.', trailer: require('@/assets/garfield2.mp4') },
@@ -227,6 +287,13 @@ export default {
                 this.filteredMoviesList = [];
             }
         },
+		
+    saveProfile() {
+        // Correctly access birthdate and contactNo
+        alert(`Profile updated:\nBirthdate: ${this.birthdate}\nContact No.: ${this.contactNo}`);
+    },
+
+		
         filteredMovies(genre) {
             return this.movies[genre].filter(movie =>
                 movie.title.toLowerCase().includes(this.searchQuery.toLowerCase())
@@ -243,21 +310,33 @@ export default {
                 .filter(seat => seat.status === 'selected')
                 .map(seat => seat.label);
         },
-        purchaseTickets() {
-            if (this.selectedSeats.length > 0) {
-                this.selectedSeats.forEach(seatLabel => {
-                    const seat = this.getSeats(this.selectedMovie.id).find(s => s.label === seatLabel);
-                    if (seat) {
-                        seat.status = 'booked'; // Sample booked seat
-                    }
-                });
-                alert(`Tickets purchased for ${this.selectedSeats.join(', ')}!`);
-                this.selectedSeats = []; // Reset selected seats
-                this.setView('Shows'); // Go back to shows after purchase
-            } else {
-                alert('Please select at least one seat to purchase.');
-            }
-        },
+         purchaseTickets() {
+        if (this.selectedSeats.length > 0) {
+            // Generate ticket numbers for each selected seat
+            this.ticketNumbers = this.selectedSeats.map((seatLabel, index) => `No.${index + 1}`);
+			this.purchasedSeats = this.selectedSeats.map(seatLabel => {
+                return this.getSeats(this.selectedMovie.id).find(seat => seat.label === seatLabel);
+            });
+			
+			this.selectedSeats.forEach(seatLabel => {
+                const seat = this.getSeats(this.selectedMovie.id).find(s => s.label === seatLabel);
+                if (seat) {
+                    seat.status = 'booked';
+                }
+            });
+			
+            this.showPopup = true;
+
+            // Reset selected seats (optional, after modal closes)
+            this.selectedSeats = [];
+        } else {
+            alert('Please select at least one seat to purchase.');
+        }
+    },
+    closePopup() {
+        this.showPopup = false;
+        this.setView('Shows'); // Redirect to the shows view after closing the popup
+    },
         submitFeedback() {
             if (this.feedback) {
                 console.log('Feedback submitted:', this.feedback);
@@ -380,39 +459,83 @@ export default {
     }
 	
     .profile-logo {
-        width: 10vw; 
-        height: 10vw; 
-        border-radius: 50%; 
-        overflow: hidden; 
-        margin-bottom: 20px; 
-        margin-top: 50px;
-        margin-left: 20%;			
+        width: 10em; 
+        height: 10em;  
+        margin-top: 20px;
+        margin-left: 15%;			
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
-        border: 5px outset;
     }
 	
     .profile-top {
-        background-color: #444444; 
-        padding: 15px; 
-        border-radius: 10px; 
-        margin-bottom: 20px;
-		margin-top: 50px;
-        text-align: left; 
-        color: #ffffff; 
-        box-shadow: 0 0 10px rgba(255, 255, 255, 0.3); 
-        width: 100%; 
-    }
+		background-color: #444444; 
+		padding: 15px; 
+		border-radius: 10px; 
+		margin: 50px auto; /* Center horizontally */
+		color: #ffffff; 
+		box-shadow: 0 0 10px rgba(255, 255, 255, 0.3); 
+		width: 80%; /* Define a percentage width */
+		max-width: 1500px; /* Optional: Restrict maximum width */
+		text-align: center; /* Center the text */
+	}
 
-    .profile-content .profile-top h2 {
-        color: white;
-        font-size: 24px;
-        text-align: left;
-        font-weight: 500;
-        margin: 0;
-    }
+
+.profile-content {
+    text-align: left; /* Align content to the left */
+    padding: 20px;
+	margin: 10px;
+}
+
+.profile-container {
+    background-color: #444444; /* Matches the profile top background */
+    padding: 40px;
+    margin-top: 20px;
+	margin-left: 10%;
+    border-radius: 10px;
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    width: 80%;
+	max-width: 1500px; /* Optional: Restrict maximum width */
+}
+
+.profile-container p {
+    margin: 10px 0;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+.user-profile-form .form-group {
+    margin-bottom: 15px;
+}
+
+.user-profile-form label {
+    font-weight: bold;
+    margin-right: 10px;
+}
+
+.user-profile-form input {
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    width: 100%;
+    max-width: 300px;
+}
+
+#save-button {
+    background-color: #28a745;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#save-button:hover {
+    background-color: #218838;
+}
+
+
 
     .profile-logo img {
         width: 100%; 
@@ -780,6 +903,85 @@ export default {
             border-radius: 5px;
             background-color: rgba(255, 255, 255, 0.1);
         }
+		
+		.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.popup-box {
+    background: #ffffff;
+    color: #333;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    max-width: 400px;
+    width: 80%;
+    box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.3);
+    animation: fadeIn 0.3s ease-out;
+}
+
+.popup-box h2 {
+    font-size: 24px;
+    margin-bottom: 15px;
+}
+
+.popup-box p {
+    margin: 10px 0;
+}
+
+.popup-box button {
+    background-color: #f39c12;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.popup-box button:hover {
+    background-color: #e67e22;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.seat-list {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+
+.seat-list li {
+    background-color: #444;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+
 </style>
 
 
